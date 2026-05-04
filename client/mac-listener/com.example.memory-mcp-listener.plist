@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.example.memory-mcp-listener</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/<YOUR_USER>/.claude/mac-listener/listener.py</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LISTENER_PORT</key>
+        <string>8787</string>
+        <key>LISTENER_BIND</key>
+        <string>0.0.0.0</string>
+        <key>LISTENER_WORKDIR</key>
+        <string>/Users/<YOUR_USER></string>
+        <key>LISTENER_MAX_BUDGET</key>
+        <string>0.50</string>
+        <key>LISTENER_SECRET_FILE</key>
+        <string>/Users/<YOUR_USER>/.claude/mac-listener/secret</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/<YOUR_USER>/Library/Logs/memory-mcp-listener.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/<YOUR_USER>/Library/Logs/memory-mcp-listener.err.log</string>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+</dict>
+</plist>

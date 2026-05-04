@@ -1,0 +1,52 @@
+# memory-mcp server config
+# place real version at /etc/memory-mcp/config.yaml (chmod 640 root:mcp)
+#
+# tokens map:
+#   <bearer_token>:
+#     identity: <short_lowercase_name>   # machine-readable, used in from/to
+#     display: <human-readable>          # shown in whoami etc.
+#
+# generate tokens: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`
+#
+# NOTE on identity names: agent_a / agent_b are placeholders. Pick names that
+# fit your setup — e.g. assistant role ("planner", "executor"), mythological
+# pair, host short-name, anything stable. Identity names appear in `from` /
+# `to` fields and in message file paths, so keep them short and lowercase.
+
+tokens:
+  REPLACE_WITH_TOKEN_FOR_AGENT_A:
+    identity: agent_a
+    display: "Agent A"
+  REPLACE_WITH_TOKEN_FOR_AGENT_B:
+    identity: agent_b
+    display: "Agent B"
+
+# webhook URLs per recipient identity — fired after a message to that identity
+# is stored. Empty / missing = no notification (recipient reads on next manual
+# session; fallback behavior, zero cost).
+#
+# payload (application/json):
+#   {"event":"message","to":"...","from":"...","subject":"...",
+#    "message_id":"...","thread_id":"..."}
+#
+# fire-and-forget, 3s timeout; listener should reply 200 OK fast and spawn its
+# notification / Claude session in the background.
+webhooks:
+  agent_a: ""   # e.g. "http://<agent-a-host>:8787/notify"
+  agent_b: ""   # e.g. "http://<agent-b-host>:8787/notify"
+
+# shared secret sent as X-MemoryMCP-Secret header with each webhook POST.
+# listeners should verify it; rejects (401) any POST without the right value.
+# leave empty to disable (then listeners must also disable their auth).
+# generate: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+webhook_secret: ""
+
+# read-only web UI on /ui — HTTP Basic auth.
+# leave empty / omit block entirely to disable the UI.
+# ui_users:
+#   admin: "REPLACE_WITH_UI_PASSWORD"
+
+# how many days a read [fyi]-tagged message lives before archive_expired() will
+# include it. archive_expired() always requires an explicit call — nothing
+# auto-archives in the background.
+auto_archive_ttl_days: 14

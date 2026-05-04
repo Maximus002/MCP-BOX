@@ -1,0 +1,11 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+secrets.*
+*.token
+config.yaml
+!config.example.yaml
+client/mac-listener/secret
+.DS_Store

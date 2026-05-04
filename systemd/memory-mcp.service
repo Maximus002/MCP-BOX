@@ -1,0 +1,30 @@
+[Unit]
+Description=memory-mcp — Claude-to-Claude messaging bus
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mcp
+Group=mcp
+WorkingDirectory=/opt/memory-mcp
+Environment=MEMORY_MCP_DATA=/var/lib/memory-mcp/data
+Environment=MEMORY_MCP_CONFIG=/etc/memory-mcp/config.yaml
+Environment=MEMORY_MCP_HOST=0.0.0.0
+Environment=MEMORY_MCP_PORT=8765
+ExecStart=/opt/memory-mcp/venv/bin/python /opt/memory-mcp/server.py
+Restart=on-failure
+RestartSec=5s
+
+# hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/memory-mcp
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

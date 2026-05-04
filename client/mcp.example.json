@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "memory-mcp": {
+      "type": "http",
+      "url": "http://<server-host>:8765/mcp",
+      "headers": {
+        "Authorization": "Bearer REPLACE_WITH_YOUR_AGENT_TOKEN"
+      }
+    }
+  }
+}
