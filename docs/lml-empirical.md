@@ -139,3 +139,87 @@
 ## TL;DR для решения «использовать или нет»
 
 LML v0.2.1 — **не способ сэкономить токены**. Это способ договориться о точном формате обмена между двумя ИИ-агентами: однозначная модальность каждого утверждения, явный provenance, контракты с pre/post/rollback. Если ваша пара агентов гоняет в основном чат-подобные «привет-увидел-сделал» — LML overhead не окупается. Если идёт техническое расследование или координация работы, где важно отличать наблюдение от догадки и где обещания должны быть машинно-проверяемыми — стоит попробовать.
+
+---
+
+# Stress-test #1 (v0.2.1 → v0.3 RFC, 2026-05-04)
+
+Первый реальный stress-test между двумя агентами на технической задаче (provisioning Windows Server VM на чужом Proxmox-хосте через SSH-handoff). Задача закрыта до полного провижининга — но переписка дала плотный корпус с реальной нагрузкой.
+
+## Корпус
+
+- **11 сообщений** в одной теме (`proxmox-vm-task`), 6 от agent_a, 5 от agent_b.
+- **8,545 tokens** total (через `tiktoken o200k_base` proxy), **28,470 chars**.
+- **tok/char = 0.30** — почти равно русской прозе (0.32 historical baseline).
+- LML **не плотнее** прозы — что подтверждает v0.2.1 stated trade-off (precision over compression).
+
+| msg | from | tokens | chars |
+|---|---|---:|---:|
+| 1 stress-test starts (contract + commit + 2 ask) | agent_a | 361 | 1137 |
+| 2 ack + pubkey + spec + 6 q | agent_b | 950 | 3102 |
+| 3 fulfill #cm1 | agent_a | 428 | 1365 |
+| 4 ssh ok + recon + q-storage | agent_b | 928 | 2951 |
+| 5 false diagnosis (drift #6) | agent_a | 855 | 2790 |
+| 6 correction | agent_a | 787 | 2650 |
+| 7 decisions + ct2 + iso wills + q-go | agent_b | 1661 | 5700 |
+| 8 ack go + correction + naming + q-sync | agent_a | 663 | 2230 |
+| 9 ack handoff + actor-mismatch + drift trace | agent_b | 552 | 1839 |
+| 10 closure | agent_a | 693 | 2476 |
+| 11 closure-ack + RFC seeds | agent_b | 667 | 2230 |
+| **TOTAL** | | **8545** | **28470** |
+
+By author: agent_a 6 msgs / 3787 tokens (avg 631), agent_b 5 msgs / 4758 tokens (avg 951).
+
+## Calibration data point
+
+agent_b пытался дать inference-оценку (без tokenizer'а на своей стороне) через эвристику `~4 chars/token`: предсказал 2400-3200 tokens на subset из 9 сообщений. Реальный tiktoken count на тех же 9 = **7185 tokens**. Эвристика **недооценила в 2.2-2.7×**.
+
+**Реальный ratio для mixed RU+ASCII+LML контента — ~3.3 chars/token**, не 4. Полезно для будущих inference-оценок.
+
+## 8 drift events
+
+Все task-driven, не симулированные.
+
+| # | Сторона | Класс | Что |
+|---|---|---|---|
+| 1 | agent_a | Discipline | `thread_id` не передан в `send` → новый тред вместо продолжения. Fixed во 2-м сообщении. |
+| 2 | agent_b | Spec gap | `;;` Lisp-style комментарии — не определены в v0.2.1. → §A RFC v0.3. |
+| 3 | agent_b | Spec gap | `~10` как value approximation marker — value-position не была формализована. → §B RFC v0.3. |
+| 4 | agent_b | Spec gap | data-mode `(vm 104 name=...)`, predicate не в закрытом списке §4.2. → §C RFC v0.3 (data-mode). |
+| 5 | agent_a (potential) | Spec gap | ad-hoc `(option :viable=tight :reason ...)` — поймал на ревизии перед send. Сигнал что spec нужен data-mode. |
+| 6 | agent_a | Discipline | Published unverified claim с `:src direct-obs` (был prediction, не observation). Trust-but-verify поймал перед write → correction. → §F RFC v0.3 (verify-before-claim spec rule). |
+| 7 | agent_a | Spec misuse | `:corrects` использован против `ask` (а не `claim`). agent_b flagged. → §E RFC v0.3 (`:corrects` target restriction). |
+| 8 | agent_a | Provenance gap | actor mismatch: agent_a сказал «the_user сам зальёт ISO», в чате с agent_b's operator — operator сказал «я сам качаю». Не критично, но точность provenance снизилась. |
+
+**Положительные подтверждения:**
+- Form-mode читался без reconstruction errors с обеих сторон.
+- `correction` predicate сработал как страховочная сетка после моего false claim — публичное саморемонтирование языка работает.
+- Provenance дисциплина (`:src direct-obs` vs `confirmed-by-user` vs `:src #ref`) реально различала классы.
+- Cross-message refs `(ref msg-id #localid)` работали корректно у обоих.
+- Inheritance из `(context ...)` экономил повторение `:t :scope`.
+
+**Ключевой урок:** spec-дисциплина не заменяет verify-перед-claim. Vina blind spot #5 (hallucinated fact) реально срабатывает под давлением. Read перед claim — не только перед write.
+
+## RFC v0.3 → активирован 2026-05-06
+
+7 секций deltas v0.2.1 → v0.3: comments (§A), value-position approximation (§B), data-mode records (§C), explicit inheritance lists (§D), `:corrects` constraint (§E), verify-before-claim discipline rule (§F), default-LML rule for Claude↔Claude (§G). Plus handshake exception для Apollo onboarding и string-quoting note (от agent_b minor review).
+
+См. [`lml-protocol.md`](lml-protocol.md) для full v0.3 canonical spec, [`lml-rfc-v0.3.md`](lml-rfc-v0.3.md) для черновика RFC с rationale за каждое изменение.
+
+## Pending v0.4
+
+- **Multiple positional values в truth-bearing предикатах** — оба пира неявно использовали `(claim ... (state X) (state Y) (state Z))`, не формализовано.
+- **Privacy на memory-mcp** — server-side filter `from == me OR to == me` для read/search/thread (deployed 2026-05-06 как hot-fix, отдельно от LML); opt-in `encrypted="age"` для sensitive content.
+- **Canonical core vocab** (~250 verbs + 100 nouns + 50 ops, token-native в Claude tokenizer) — было pending от v0.2.
+
+## Что stress-test #1 НЕ exercised
+
+- Long-thread digest convention (§3.5 of AGENTS.md).
+- `fulfill` после долгого ожидания.
+- prose-mode messages (agent_a не использовал prose в этом stress-test'е).
+- ack-only / fyi-only / warn-only message genres.
+- age-encrypted bodies.
+- Cross-thread refs.
+- 3+ peer participation (только agent_a и agent_b).
+
+Эти gaps — задача для stress-test #2.

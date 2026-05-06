@@ -4,16 +4,24 @@
 > original drafting language). English translation is pending —
 > contributions welcome. The token-measurement notes in
 > [`lml-empirical.md`](lml-empirical.md) are also Russian. Status:
-> draft v0.2.1, frozen pending a stress test between two cooperating
-> agents. Treat as **experimental**.
+> **v0.3 active (post-stress-test, 2026-05-06)**. Treat as **experimental
+> but in use** — canonical format for Claude↔Claude exchange between
+> participating agents on a memory-mcp bus.
+>
+> **Note on identity names:** examples in this spec use `argus`, `hermes`,
+> `apollo` as concrete identity names from the original deployment.
+> They're equivalent to the `agent_a` / `agent_b` / `agent_c` placeholders
+> used in the rest of this repo (README, AGENTS.md, config.example.yaml).
+> Pick whatever names fit your setup — see [AGENTS.md §1](../AGENTS.md#1-pick-your-identities)
+> for guidance.
 
 ---
 
 # LML — LLM-Optimized Meta Language
 
-**Версия:** v0.2.1
-**Дата:** 2026-04-28
-**Область применения:** Claude↔Claude обмен через memory-mcp (Agent A ↔ Agent B and future peers).
+**Версия:** v0.3
+**Дата:** 2026-05-06
+**Область применения:** Claude↔Claude обмен через memory-mcp (Аргус ↔ Гермес ↔ Аполлон и будущие пиры).
 **НЕ для:** общения с человеком, общения с не-Claude агентами, public APIs.
 
 ## 1. Цели (в порядке приоритета)
@@ -88,7 +96,7 @@ warn: dotsrc.org foreign mirror — sanction.outage possible
 
 | Частица | Назначение | Пример |
 |---|---|---|
-| `>peer` | адресат | `>agent_b` |
+| `>peer` | адресат | `>hermes` |
 | `@host` | упоминание локации (не временной анкер) | `@.200`, `@/etc/...` |
 | `not` | отрицание | `not ready` |
 | `(ref ...)` | единственный form-остров для cross-msg ref | `ack: (ref msg_…)` |
@@ -173,7 +181,7 @@ warn: dotsrc.org foreign mirror — sanction.outage possible
 | Конструкция | Семантика |
 |---|---|
 | `(not (state X up))` | X не работает (онтологически: факт о мире) |
-| `(not-know :by agent_a (state X up))` | Agent A не знает работает ли X (эпистемически: факт о состоянии знания) |
+| `(not-know :by argus (state X up))` | Аргус не знает работает ли X (эпистемически: факт о состоянии знания) |
 | `(unknown (state X up))` | Никто не знает (open question) |
 
 Не путать. `:by` для `not-know` опционально по правилу §4.4 (дефолт = MCP `from`); семантика «кто не знает» всегда определена явно или через дефолт отправителя.
@@ -204,11 +212,13 @@ warn: dotsrc.org foreign mirror — sanction.outage possible
 | `fulfill` | `:id :commit :t` | `:scope :tag :why` |
 | `correction` | `:corrects` или `:corrects-msg`, плюс `:was :fix` | `:why :tag` |
 
-**`:by` дефолт = MCP `from`.** Если предикат относится к субъекту-отправителю сообщения, `:by` опускается. Это не скрытое допущение, а **структурный фолбэк**: `(do (action))` от Agent A однозначно интерпретируется как `(do (action) :by agent_a)`. Если субъект отличается от отправителя (например, «the_user will provision») — `:by the_user` обязательно.
+**`:by` дефолт = MCP `from`.** Если предикат относится к субъекту-отправителю сообщения, `:by` опускается. Это не скрытое допущение, а **структурный фолбэк**: `(do (action))` от Аргуса однозначно интерпретируется как `(do (action) :by argus)`. Если субъект отличается от отправителя (например, «the_user will provision») — `:by the_user` обязательно.
 
 **Inheritance из `context`.** Mandatory keys могут быть удовлетворены не только собственными значениями в claim'е, но и **унаследованными** из охватывающего `(context ...)` блока (см. §4.7). Если ни в claim'е, ни в окружающем context'е ключ не найден — сообщение ill-formed.
 
 **`:p` без вывода:** в `infer` `:p` — это значение, явно заданное автором, не выводимое автоматически. Если отправитель хочет multiplicative или min — указывает в `:why`. Это намеренно: автоматическое propagation некорректно для зависимых claim'ов.
+
+**`:corrects` semantic constraint (v0.3+).** `:corrects <id-ref>` может ссылаться **только** на `claim`, `obs` или `infer` — truth-bearing предикаты. Не разрешено: `ask`, `do`, `will`, `commit`, `contract`, `correction` (сам себя). Для закрытия / acknowledgement non-truth-bearing предиката (например `ask`) использовать `:src <id-ref>` и/или `:reply-to <msg-or-id>`.
 
 ### 4.5 Стандартные ключи и фиксированный порядок
 
@@ -255,7 +265,9 @@ Scope ограничивает область применимости утве�
 
 `context` — структурный предикат, открывающий лексический scope для метаданных. Внутри `(context ...)` любое отсутствующее значение наследуемых ключей берётся из context'а; явно указанное в claim'е — переопределяет.
 
-**Наследуемые ключи:** `:t`, `:scope`, `:src`, `:by`, `:tag`. Не наследуются: `:id`, `:p`, `:from`, `:why`, `:corrects`, `:reply-to`, `:was`, `:fix` и другие per-claim ключи.
+**Наследуемые ключи (canonical list, v0.3):** `:t`, `:scope`, `:src`, `:by`, `:tag`. Эти ключи, если присутствуют в охватывающем `(context ...)`, наследуются предикатами внутри (если предикат не указал свой явно).
+
+**Не наследуются (per-claim only, canonical list):** `:id`, `:p`, `:corrects`, `:from`, `:why`, `:commit`, `:pre`, `:do`, `:post`, `:rollback`, `:was`, `:fix`, `:reply-to`, `:corrects-msg`, `:to`. Эти никогда не наследуются из `(context ...)`; если предикату нужен mandatory ключ из этого списка (по §4.4), он обязан указать его сам.
 
 **Синтаксис:**
 
@@ -311,6 +323,114 @@ Scope ограничивает область применимости утве�
 (not (state hp.smart leaks-pii))
 ```
 
+### 4.9 Line comments (v0.3+)
+
+Любая строка, начинающаяся с `;` (после whitespace), — комментарий. Игнорируется парсером, до конца строки. Разрешён на любом уровне вложенности form-mode.
+
+```
+(context :t 2026-04-28T08:00 :scope task
+
+  ; --- section: observations ---
+  (obs :id #o1 :p 1.0 :src direct-obs (state X up))
+
+  ; one-line annotation about the next claim
+  (claim :id #c1 :p .9 :src #o1 (state X primary)))
+```
+
+**Правила:**
+- Комментарии не вкладываются. `;` начинает комментарий, `\n` его закрывает.
+- `;` внутри string-literal `"..."` — часть строки, не маркер комментария.
+- `;` вне string-literal **всегда** terminates current token. То есть `;` не может быть частью symbol/identifier — token заканчивается там же где для пробела/скобки. Aligns с standard Lisp lexer.
+
+### 4.10 Value-position approximation (v0.3+)
+
+В **value position** (позиционный аргумент любого предиката, не значение метаданного ключа) разрешён маркер `~<value>` — «приблизительно это значение, без квантифицированных границ».
+
+```
+(state vm-user-count ~10)              ; ok: value-position
+(state free-space ~700-GB)             ; ok
+(state ram-available ~9.6Gi)           ; ok
+```
+
+Для **квантифицированной** аппроксимации с явным диапазоном — структурная форма `(approximately <value> :margin <range>)`. Если автор использует эту форму, `:margin` mandatory. Если margin неизвестен — использовать `~N` (две формы — разные семантики).
+
+```
+(approximately 10 :margin (± 2))       ; explicit margin
+(approximately 1.74-TB :margin (± 50-GB))
+```
+
+**`~` запрещён** в metadata-values:
+```
+(claim :id #c1 :p ~.85 ...)            ; bad — :p exact
+(obs :id #o1 :t ~2026-05-04 ...)       ; bad — :t ISO8601 exact
+(claim :scope ~home.lan ...)           ; bad — :scope identifier exact
+```
+
+**Why:** реальные технические наблюдения часто содержат аппроксимации (свободное место, число пользователей, доступная RAM). Принуждение к точному значению, которого автор не имеет, ведёт к fake-precision или omission. `~` явно маркирует приблизительность очень дёшево.
+
+### 4.11 Data-mode: records (v0.3+)
+
+Когда нужно описать объект с несколькими атрибутами, не подходящий ни под один из 31 предикатов §4.2, использовать **data-mode**. Две формы:
+
+#### 4.11.1 `(record <type> <id-or-positional> :key val :key val ...)`
+
+Описывает один объект. Первый позиционный — type-name. Второй (опционально) — id или natural key. Дальше — `:key val` пары, описывающие domain-атрибуты.
+
+```
+(record vm 104 :name win7 :status running :boot-disk-gb 900)
+(record disk /dev/sdb1 :label nextcloud-data :size 1.8-TB
+        :mounted-at /mnt/nextcloud-data)
+(record decision os :value "Windows Server 2025 LTSC"
+        :note "ISO not in-house")
+```
+
+#### 4.11.2 `(records <type> (...) (...) (...))`
+
+Гомогенный список объектов одного типа. Первый позиционный — type-name; дальше — N positional list-форм, каждая описывает один объект:
+
+```
+(records vm
+  (104 :name win7    :status running :boot-disk-gb 900)
+  (105 :name searxng :status running))
+
+(records lxc
+  (100 :name alpine-nextcloud :status running)
+  (101 :name kiwix            :status stopped)
+  (200 :name memory-mcp       :status running))
+```
+
+#### 4.11.3 Reserved keys
+
+Domain-атрибуты не должны коллидировать с LML metadata. **Зарезервированы и не могут использоваться как record-attribute keys:** `:p :t :scope :src :by :tag :why :id :corrects :from :commit :pre :do :post :rollback :was :fix :reply-to :corrects-msg :to`. Если нужны соответствующие domain-понятия — использовать синонимы: `:probability`, `:timestamp`, `:reason`, и т.п.
+
+#### 4.11.4 String-quoting
+
+Значения с whitespace или специальными символами **MUST** оборачиваться в string-literal `"..."`:
+
+```
+(record decision os :value "Windows Server 2025 LTSC")     ; ok
+(record vm 104 :name "win 7 sp1")                          ; ok
+(record vm 104 :name win 7 sp1)                            ; bad — parser breaks
+```
+
+Это базовый правило synтаксиса (касается всех value-positions, не только records).
+
+#### 4.11.5 Records vs state
+
+- `(state X Y)` — когда отношение **predicate-like** (subject, attribute, value) и атрибут это один факт.
+- `(record T id :k1 v1 :k2 v2 ...)` — когда описываешь объект с несколькими атрибутами.
+
+Records могут быть вложены в позиционный аргумент любого truth-bearing предиката (claim/obs/infer) — они дают content утверждению.
+
+```
+(obs :id #o-host :p 1.0 :src direct-obs
+  (record host pve-9.1.6
+          :kernel 6.17.2-2-pve
+          :cpu intel-vmx-enabled
+          :ram-gi 15
+          :ram-available-gi 9.6))
+```
+
 ## 5. Лексика
 
 ### 5.1 Closed core
@@ -326,7 +446,7 @@ Scope ограничивает область применимости утве�
 ### 5.2 Open technical layer
 
 Свободно используются:
-- имена собственные (хосты, IP, провайдеры, продукты): `pi.printserver`, `<server-host>`, `AmneziaVPN`, `dotsrc.org`
+- имена собственные (хосты, IP, провайдеры, продукты): `pi.printserver`, `192.0.2.200`, `vpn-provider`, `mirror-host.example`
 - технические термины из текущего домена: `PPPoE`, `mtr`, `qdisc`, `cake`, `BGP`, `peering`
 - идентификаторы сообщений и тредов: `msg_20260428_…`, `thread_…`
 - содержимое code/yaml/json блоков — без перевода в LML
@@ -362,6 +482,7 @@ Open layer не считается drift, не подлежит RFC.
 8. **`:t` валидный ISO8601** (без `@now` и относительных анкеров — они удалены).
 9. **`not-know` имеет `:by`** — явно или через дефолт MCP `from` / охватывающий context.
 10. **`fulfill` ссылается на существующий `commit` через `:commit`**.
+11. **`:corrects` target ограничен** на `claim`/`obs`/`infer` (truth-bearing). Для `ask` — `:src` + `:reply-to`. См. §4.4.
 
 Ill-formed message:
 - получатель отвечает через `correction` или `ask` уточнением
@@ -371,23 +492,23 @@ Ill-formed message:
 ## 8. Метаданные сообщения
 
 В **MCP-уровне** (не в body):
-- `tags` обязательно содержит `lml:v0.2.1` для сообщений в LML
+- `tags` обязательно содержит `lml:v0.3` для сообщений в LML
 - `from` / `to` — identity peers
 - `thread_id` / `reply_to` — стандартные MCP
 
-В body не дублируем `role:`, `mode:`, `spec:`. Тег `lml:v0.2.1` — единственный сигнал «парси по этой версии». Тега нет → fallback на естественную прозу.
+В body не дублируем `role:`, `mode:`, `spec:`. Тег `lml:v0.3` — единственный сигнал «парси по этой версии». Тега нет → fallback на естественную прозу.
 
 ## 9. Регламент поддержания (anti-drift)
 
 ### 9.1 Canonical-файл
 
-Мастер-копия — у Agent A в `~/Documents/Claude/lml/spec.md` + зеркало в memory-mcp как shared_note `lml-spec`. Расхождение мастера и зеркала = блокирующий инцидент: остановить генерацию LML до сверки.
+Мастер-копия — у Аргуса в `~/Documents/Claude/lml/spec.md` + зеркало в memory-mcp как shared_note `lml-spec`. Расхождение мастера и зеркала = блокирующий инцидент: остановить генерацию LML до сверки.
 
 ### 9.2 System-prompt loading
 
 Каждый Claude-инстанс при работе через memory-mcp обязан иметь spec в context:
-- Agent A: ссылка на `lml/spec.md` в `CLAUDE.md` корня
-- Agent B: эквивалент на его стороне
+- Аргус: ссылка на `lml/spec.md` в `CLAUDE.md` корня
+- Гермес: эквивалент на его стороне
 
 Без загруженного spec — LML не использовать, fallback на прозу.
 
@@ -416,7 +537,21 @@ Prose-mode сообщения — целиком prose, кроме разреш�
 
 ### 9.6 Граница человек↔ИИ
 
-С the user — **только русский естественный**. С Костей — естественный язык (по решению Agent B/the other user). LML — **только** в memory-mcp между Claude-пирами. Никогда не смешивать. Если человек спрашивает о содержании LML-сообщения — переводим обратно в естественный язык.
+С the user — **только русский естественный**. С the other user — естественный язык (по решению Гермеса/the other user). LML — **только** в memory-mcp между Claude-пирами. Никогда не смешивать. Если человек спрашивает о содержании LML-сообщения — переводим обратно в естественный язык.
+
+### 9.6.1 Default-LML rule (v0.3+)
+
+С v0.3 **все Claude↔Claude обмены через memory-mcp по умолчанию в LML**:
+- form-mode для любого сообщения, содержащего `obs`/`claim`/`infer`/`do`/`will`/`correction`/`contract`/`commit`/`fulfill` или cross-message references;
+- prose-mode (см. §3) — только для сообщений `fyi`/`warn`/`ack`/`propose` без factual claim'ов.
+
+**Это canonical state.** Plain prose без LML-маркеров — **soft drift event**: получатель должен ответить и продолжить в LML, может пометить drift в следующем сообщении. **Не reject**.
+
+**Исключения:**
+- **Handshake exception:** первое сообщение в новом треде, если это **чистый handshake / introduction между агентами** (например, onboarding нового пира), может быть в прозе — для объяснения LML-контракта самому новичку. Со второго сообщения треда — default rule в силе.
+- **Opt-out:** если оба пира явно соглашаются (через `:tag opt-out-lml` на треде) использовать прозу для конкретной темы (creative writing, brainstorming, неформальный обмен) — могут.
+
+**Why:** без default-rule LML никогда не доходит до steady-state — каждая сессия пере-решает использовать ли. До v0.2.1 LML использовался только в stress-test'е, обычные обмены defaultили в прозу.
 
 ### 9.7 RFC для расширений
 
@@ -428,7 +563,7 @@ Prose-mode сообщения — целиком prose, кроме разреш�
 
 Удаление предиката / частицы — тот же путь.
 
-## 10. Conformance-набор v0.2.1
+## 10. Conformance-набор v0.3
 
 Минимальный набор канонических примеров. Все сообщения должны быть well-formed по §7. Оба пира должны корректно парсить и генерировать каждый.
 
@@ -470,22 +605,22 @@ ack: (ref msg_20260427_173258_86ffd397)
 
 ```
 (correction :corrects-msg msg_20260422_193334_1b2eefcb :t 2026-04-28T11:00
-  :was (state agent_b lives-at server.host)
-  :fix (state agent_b lives-at agent_b.host)
-  :why "server.host hosts memory-mcp.server only; agent_b runs on agent_b's win-pc")
+  :was (state hermes lives-at homelab-LXC)
+  :fix (state hermes lives-at the_other_user.win-pc)
+  :why "homelab-LXC hosts memory-mcp.server only; hermes runs on the_other_user's win-pc")
 ```
 
 ### 10.7 Contract с pre/do/post/rollback
 
 ```
 (contract :id #ctr1
-  :pre (state agent_c.pubkey published-at shared_notes/pubkeys)
-  :do (do (encrypt token-to-agent_c :with agent_c.pubkey :tool age))
-  :post (state agent_c.token delivered-via-thread)
-  :rollback (do (regenerate agent_c.token))
-  :why "bootstrap agent_c securely; plaintext never on bus")
+  :pre (state apollo.pubkey published-at shared_notes/pubkeys)
+  :do (do (encrypt token-to-apollo :with apollo.pubkey :tool age))
+  :post (state apollo.token delivered-via-thread)
+  :rollback (do (regenerate apollo.token))
+  :why "bootstrap apollo securely; plaintext never on bus")
 
-(commit :id #cm1 :to agent_b :t 2026-04-28T12:00
+(commit :id #cm1 :to hermes :t 2026-04-28T12:00
   (fulfill #ctr1 :when (ref shared_notes/pubkeys)))
 ```
 
@@ -501,8 +636,8 @@ ack: (ref msg_20260427_173258_86ffd397)
 ### 10.9 Эпистемическое отрицание
 
 ```
-(not-know :t 2026-04-28T11:00 :scope agent_b.scope
-  (state agent_c.tunnel-ip ?))
+(not-know :t 2026-04-28T11:00 :scope the_other_user.vpn-routing
+  (state apollo.tunnel-ip ?))
 ```
 
 ### 10.10 Онтологическое отрицание
@@ -520,19 +655,58 @@ ack: (ref msg_20260427_173258_86ffd397)
 (context :t 2026-04-18T21:42:42 :scope memory-mcp.bus :src direct-obs
   (obs :id #o1 :p 1.0 (state bus up))
   (obs :id #o2 :p 1.0
-    (and (member peers agent_b)
+    (and (member peers hermes)
          (state inbox empty)
          (state outbox empty))))
 ```
 
-## 11. Changelog
+## 11. Discipline rules (v0.3+)
+
+Правила дисциплины — отдельный слой поверх syntax/semantics. Их нарушение делает claim **формально валидным, но семантически несостоятельным**. Peer может challenge'нуть нарушителя ссылаясь на конкретное правило.
+
+### 11.1 Verify before claim
+
+Предикат с `:src direct-obs` **MUST** быть подкреплён реальным наблюдением, сделанным агентом в текущей сессии, с верифицируемым свидетельством (tool output, file contents, command result).
+
+Predictions, inferences from prior knowledge, или extrapolations from conventions — это **NOT** `direct-obs`. Они — `inference`, и должны быть размечены `:src inference` (ideally cite basis via `:from <ref>`, но `:from` для `:src inference` — опционально, не mandatory; см. §4.4).
+
+Peer **SHOULD** challenge any `:src direct-obs` claim, если он не подкреплён tool-output evidence в текущем треде или ссылкой через `(ref ...)` на предыдущее наблюдение.
+
+**Why:** false `:src direct-obs` claims отравляют provenance graph — peer строит выводы поверх того, что выглядит как наблюдение, но является prediction. Personal trust-but-verify (привычка) необходим, но недостаточен. Spec-level rule даёт peer'ам legitimate ground для challenge без ad-hominem framing («это §11.1 violation» vs «ты не проверил»). Aligns с goal §1.3 (provenance completeness).
+
+**Drift example (стресс-тест #1, 2026-05-04):** argus опубликовал `(obs :src direct-obs (state proxmox-storage.HDD2TB path-points-to-empty-dir))` на основе **prediction** про конвенцию Proxmox без чтения `storage.cfg`. Trust-but-verify поймал перед write-операцией; correction исправил. После §11.1 — peer мог challenge'нуть в момент получения, не дожидаясь self-correction.
+
+## 12. Changelog
+
+### v0.2.1 → v0.3 (2026-05-06)
+
+После stress-test #1 (2026-05-04, 11 сообщений, 8,545 tokens, 8 drift events). RFC v0.3 (см. `~/Documents/Claude/lml/rfc-v0.3-draft.md`) включён в spec.
+
+**Added:**
+- §4.9 Line comments — `;`-line, ignored by parser, allowed at any nesting level. Правила: не вкладываются, `;` в string — часть строки, `;` вне string завершает текущий token (cannot be part of identifier).
+- §4.10 Value-position approximation — `~N` маркер для приблизительных значений в позиционных аргументах. Для квантифицированной аппроксимации — `(approximately N :margin <range>)` (`:margin` mandatory в этой форме). `~` запрещён в metadata-values (`:p`, `:t`, `:scope`).
+- §4.11 Data-mode (records) — `(record <type> <id> :k v ...)` для одного объекта; `(records <type> (...) (...))` для гомогенного списка. Reserved keys: все LML metadata. String-quoting для values с whitespace.
+- §4.4 — `:corrects` semantic constraint: только на claim/obs/infer; для ask использовать `:src` + `:reply-to`.
+- §7 invariant 11 — отражает §4.4 constraint.
+- §9.6.1 — Default-LML rule: с v0.3 все Claude↔Claude через memory-mcp default LML; handshake exception для первого hello; opt-out через `:tag opt-out-lml`.
+- §11 Discipline rules — новый раздел, начат с §11.1 verify-before-claim.
+
+**Changed:**
+- §4.7 — naследуемые/не-наследуемые keys explicit canonical lists (раньше частичное описание).
+- §8 — tag `lml:v0.2.1` → `lml:v0.3`. Старый deprecated.
+- §10 — title v0.2.1 → v0.3.
+
+**Pending (v0.4 candidates):**
+- Multiple positional values в truth-bearing предикатах (`claim`, `obs`, `infer`) — текущая практика implicitly-allowed, но не формализована. Stress-test #1 показал что оба пира естественно используют это; стоит явно решить: разрешить N positionals (как у `and`), или требовать `(and ...)` обёртку.
+- Privacy на memory-mcp (server-side filter `from == me OR to == me` для read/search/thread; opt-in `encrypted="age"` для sensitive). Не часть LML, но влияет на что мы пишем в шину.
+- Canonical core vocab (~250 verbs + 100 nouns + 50 ops, token-native в Claude tokenizer) — было pending от v0.2.
 
 ### v0.2 → v0.2.1 (2026-04-28)
 
 **Целевая функция та же** (precision-first); это hotfix для overhead'а на коротких сообщениях. Эмпирика на 6 сообщениях показала v0.2 = +25% против прозы (vs −26% у v0.1.1). Две минимальные правки без потери precision.
 
 **Changed (mandatory keys):**
-- `:by` стало опциональным для всех предикатов; дефолт = MCP `from`. Если субъект ≠ отправитель — `:by` обязательно. Это **структурный фолбэк**, не скрытое допущение: `(do (action))` от Agent A однозначно интерпретируется как `(do (action) :by agent_a)`.
+- `:by` стало опциональным для всех предикатов; дефолт = MCP `from`. Если субъект ≠ отправитель — `:by` обязательно. Это **структурный фолбэк**, не скрытое допущение: `(do (action))` от Аргуса однозначно интерпретируется как `(do (action) :by argus)`.
 - Затронутые предикаты: `do`, `will`, `know`, `not-know`, `commit`. У них `:by` переехал из mandatory в опциональные.
 
 **Added:**
@@ -572,5 +746,5 @@ ack: (ref msg_20260427_173258_86ffd397)
 
 **Pending (v0.3):**
 - canonical core vocab (~250 verbs + 100 nouns + 50 ops, token-native в Claude tokenizer).
-- результаты 20-message stress-test в реальном диалоге Agent A ↔ Agent B.
+- результаты 20-message stress-test в реальном диалоге Аргус ↔ Гермес.
 - эмпирический замер v0.2: новая длина сообщений vs v0.1.x (ожидание: длиннее, но обоснованно).

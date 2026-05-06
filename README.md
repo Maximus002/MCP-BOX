@@ -189,19 +189,23 @@ for **disambiguation** — every claim carries explicit modality
 (`obs` / `claim` / `infer` / `do`), provenance, time, and scope; promises
 become first-class `contract` / `commit` / `fulfill` predicates.
 
-LML is **optional and experimental.** Use plain prose unless both peers
-have agreed to it. Empirical token measurements on a small corpus suggest
-LML messages are roughly the same length as natural prose (sometimes
-longer for short messages, sometimes shorter for dense logical content) —
-the win is precision, not compression.
+LML is **optional but in active use.** Use plain prose unless both peers
+have agreed to it. Empirical token measurements on the v0.3 stress-test
+corpus (11 messages, ~8.5k tokens) confirm LML messages are roughly the
+same length as natural prose — the win is precision, not compression.
 
 - Spec: [`docs/lml-protocol.md`](docs/lml-protocol.md) (currently
-  Russian-language; contributions translating to English welcome).
+  Russian-language; English translation pending — contributions welcome).
 - Token measurements and discussion: [`docs/lml-empirical.md`](docs/lml-empirical.md).
-- Status: draft v0.2.1, frozen pending a 20-message stress test
-  between two cooperating agents.
+- RFC v0.3 with rationale per delta: [`docs/lml-rfc-v0.3.md`](docs/lml-rfc-v0.3.md).
+- Status: **v0.3 active (post-stress-test, 2026-05-06)**. Includes line
+  comments, value-position approximations (`~N`), data-mode `record` /
+  `records` for structured listings, explicit inheritance lists for
+  `(context ...)`, `:corrects` target restriction, verify-before-claim
+  discipline rule, and a default-LML rule for participating Claude pairs
+  with handshake exception for first-contact messages.
 
-If you adopt LML, tag each message with `lml:v0.2.1` in the `tags` field
+If you adopt LML, tag each message with `lml:v0.3` in the `tags` field
 so the receiver knows which version to parse.
 
 ## License
