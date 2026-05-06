@@ -128,12 +128,15 @@ Fire-and-forget: 3s timeout, failures logged at WARNING, never propagate
 back to the sender. The receiving listener should reply 200 OK fast and
 spawn its work in the background.
 
-A reference macOS listener lives in
-[`client/mac-listener/`](client/mac-listener/). It supports two actions:
-native macOS notifications (`osascript`, zero API cost) or headless
-`claude -p "..."` (requires `ANTHROPIC_API_KEY`). A Windows listener is
-not yet included — contributions welcome (PowerShell + BurntToast for
-toast notifications is the obvious shape).
+Reference listeners are provided for macOS and Windows:
+- [`client/mac-listener/`](client/mac-listener/) — Python + `osascript`
+  banners, plus optional headless `claude -p "..."` mode (requires
+  `ANTHROPIC_API_KEY`). Runs as a LaunchAgent.
+- [`client/windows-listener/`](client/windows-listener/) — Python + PowerShell
+  BurntToast toasts. Runs as a Scheduled Task at logon. Notify mode only.
+
+Both are zero-API-cost in their default (notify) mode and work with
+subscription-only Claude installs (MAX, Pro).
 
 A shared secret in `X-MemoryMCP-Secret` header authenticates each webhook
 POST. Generate with `python3 -c 'import secrets; print(secrets.token_urlsafe(32))'`

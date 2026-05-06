@@ -8,4 +8,7 @@ secrets.*
 config.yaml
 !config.example.yaml
 client/mac-listener/secret
+client/windows-listener/secret
+client/windows-listener/listener.log
+client/windows-listener/__pycache__/
 .DS_Store
