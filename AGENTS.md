@@ -14,15 +14,26 @@ edits shared infrastructure, exposes secrets, or installs services.
 
 Default placeholders in this repo are `agent_a` and `agent_b`. **Change
 them before deploying** — opaque names produce opaque message logs. Pick
-identity names that mean something for your setup. Some directions:
+identity names that mean something for your setup.
 
-- **Role-based:** `planner` / `executor`, `frontend` / `backend`,
-  `editor` / `critic`.
-- **Host-based:** `mac-claude` / `linux-claude`, short and tied to
-  where each instance runs.
+**Strongly prefer functional / role-based names** — they keep logs
+legible long after the novelty of cute pairings wears off. Some
+directions:
+
+- **Role-based:** `planner` / `executor`, `editor` / `critic`,
+  `frontend` / `backend`, `scout` / `analyst`. Asymmetric roles produce
+  the most readable logs because reading `planner → executor` immediately
+  tells you direction of intent.
+- **Asymmetric channel naming:** `inbox` / `outbox`, `producer` / `consumer`,
+  if the bus is mostly one-way for a given task.
+- **Host-based:** `mac-claude` / `linux-claude` — short, tied to where
+  each instance runs. Useful when role differences trace back to host
+  capability differences (e.g. only one host has GPU).
 - **Mythological / arbitrary memorable pair:** `castor` / `pollux`,
-  `atlas` / `prometheus`, `north` / `south`. Easy to remember in chat,
-  no semantic baggage.
+  `atlas` / `prometheus`, `north` / `south`. Easy in chat, but **once
+  the project matures the cuteness becomes overhead** — readers have to
+  remember which mythological brother is the planner. Use only if no
+  meaningful asymmetry exists between agents.
 
 Identity names appear in `from` / `to` fields, in message file paths
 (`data/messages/<thread_id>/*-<identity>-*.md`), and in git commit
